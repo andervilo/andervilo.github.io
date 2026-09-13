@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<title>Autonomia da Motinha</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0f172a;color:#e5e7eb;min-height:100vh}.app{max-width:720px;margin:auto;padding:18px 14px 40px}.hero,.card{background:#111827;border:1px solid #1f2937;border-radius:22px;padding:18px;margin-bottom:14px;box-shadow:0 14px 40px #0005}.hero{background:linear-gradient(135deg,#1e293b,#111827)}h1{margin:0 0 6px;font-size:1.8rem}.sub,.hint,.meta{color:#94a3b8}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:16px}.metric{background:#ffffff0d;border:1px solid #ffffff14;border-radius:16px;padding:14px}.metric small{display:block;color:#94a3b8;margin-bottom:5px}.metric strong{font-size:1.45rem}label{display:block;color:#cbd5e1;font-size:.9rem;margin:10px 0 6px}input{width:100%;padding:13px;border-radius:13px;border:1px solid #334155;background:#0f172a;color:#f8fafc;font-size:1rem}.row{display:grid;grid-template-columns:1fr 130px;gap:10px}button{border:0;border-radius:13px;padding:13px 15px;font-weight:700;cursor:pointer}.primary{width:100%;margin-top:12px;background:#22c55e;color:#052e16}.secondary{background:#1e293b;color:#e2e8f0}.danger{background:#3f1d24;color:#fecaca}.battery{height:15px;background:#1e293b;border-radius:999px;overflow:hidden;margin-top:14px}.fill{height:100%;background:#22c55e;width:100%;transition:.2s}.trip{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;background:#0f172a;border:1px solid #1e293b;border-radius:14px;padding:11px;margin-top:9px}.trip b{display:block}.del{padding:8px 10px;background:#3f1d24;color:#fecaca}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.empty{text-align:center;color:#94a3b8;padding:15px}.hint{font-size:.86rem;line-height:1.45}@media(max-width:560px){.row{grid-template-columns:1fr}.actions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="app">
+<section class="hero">
+<h1>⚡ Autonomia da Motinha</h1>
+<p class="sub">Registre os percursos de cada carga e acompanhe a autonomia real da bateria.</p>
+<div class="grid">
+<div class="metric"><small>Distância rodada</small><strong id="km">0,0 km</strong></div>
+<div class="metric"><small>Bateria restante</small><strong id="bat">100%</strong></div>
+<div class="metric"><small>Consumo</small><strong id="cons">—</strong></div>
+<div class="metric"><small>Autonomia estimada</small><strong id="range">—</strong></div>
+</div>
+<div class="battery"><div id="fill" class="fill"></div></div>
+</section>
+
+<section class="card">
+<h2>🔋 Estado da carga</h2>
+<label>Bateria no início (%)</label><input id="initial" type="number" min="1" max="100" value="100">
+<label>Bateria restante agora (%)</label><input id="current" type="number" min="0" max="100" value="100">
+<p class="hint">Ex.: começou em 100% e agora está em 65%. Com a distância rodada, o app projeta a autonomia total dessa carga.</p>
+</section>
+
+<section class="card">
+<h2>🛵 Adicionar percurso</h2>
+<div class="row">
+<div><label>Descrição</label><input id="desc" placeholder="Ex.: Igreja ida e volta"></div>
+<div><label>Distância (km)</label><input id="dist" type="number" min=".1" step=".1" placeholder="3,0"></div>
+</div>
+<button id="add" class="primary">Adicionar percurso</button>
+</section>
+
+<section class="card">
+<h2>📍 Percursos da carga atual</h2>
+<div id="list"></div>
+<div class="actions">
+<button id="example" class="secondary">Carregar exemplo</button>
+<button id="reset" class="danger">Nova carga / zerar</button>
+</div>
+</section>
+
+<section class="card">
+<h2>📊 Cálculo</h2>
+<p class="hint">Se rodou <b>5,4 km</b> e consumiu <b>20%</b>, a autonomia projetada é <b>27 km</b>: 5,4 ÷ 20 × 100.</p>
+</section>
+</main>
+<script>
+const KEY="motinha-autonomia-v2";
+let s=JSON.parse(localStorage.getItem(KEY)||"null")||{initial:100,current:100,trips:[]};
+const $=id=>document.getElementById(id),fmt=n=>n.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" km";
+function esc(v){const d=document.createElement("div");d.textContent=v;return d.innerHTML}
+function save(){localStorage.setItem(KEY,JSON.stringify(s))}
+function render(){
+$("initial").value=s.initial;$("current").value=s.current;
+const total=s.trips.reduce((a,t)=>a+t.distance,0),used=Math.max(0,s.initial-s.current),r=used&&total?(total/used)*s.initial:null;
+$("km").textContent=fmt(total);$("bat").textContent=s.current+"%";$("cons").textContent=used?used+"%":"—";$("range").textContent=r?fmt(r):"—";
+$("fill").style.width=Math.max(0,Math.min(100,s.current))+"%";
+$("fill").style.background=s.current<=20?"#ef4444":s.current<=50?"#eab308":"#22c55e";
+$("list").innerHTML=s.trips.length?s.trips.map((t,i)=>'<div class="trip"><div><b>'+esc(t.description)+'</b><span class="meta">'+t.date+'</span></div><strong>'+fmt(t.distance)+'</strong><button class="del" onclick="removeTrip('+i+')">✕</button></div>').join(""):'<div class="empty">Nenhum percurso registrado nesta carga.</div>';
+save()
+}
+window.removeTrip=i=>{s.trips.splice(i,1);render()};
+$("add").onclick=()=>{const description=$("desc").value.trim(),distance=Number($("dist").value);if(!description)return alert("Informe uma descrição.");if(!(distance>0))return alert("Informe uma distância válida.");s.trips.push({description,distance,date:new Date().toLocaleString("pt-BR")});$("desc").value="";$("dist").value="";render()};
+$("initial").oninput=()=>{s.initial=Math.max(1,Math.min(100,Number($("initial").value)||100));if(s.current>s.initial)s.current=s.initial;render()};
+$("current").oninput=()=>{s.current=Math.max(0,Math.min(s.initial,Number($("current").value)||0));render()};
+$("reset").onclick=()=>{if(confirm("Iniciar nova carga e apagar os percursos atuais?")){s={initial:100,current:100,trips:[]};render()}};
+$("example").onclick=()=>{s={initial:100,current:80,trips:[{description:"Igreja - ida e volta",distance:3,date:"Hoje"},{description:"Casa da mãe - ida e volta",distance:2.4,date:"Hoje"}]};render()};
+render();
+if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js"));
+</script>
+</body></html>
